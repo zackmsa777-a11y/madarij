@@ -1,3 +1,4 @@
+import { closePicker, enhancePickers } from "./pickers.js";
 import {
   startMotion,
   captureRows,
@@ -166,7 +167,9 @@ function field(title, obj, key, type = "text", items = null, disabled = false) {
   let control;
   if (items)
     control =
-      "<select" +
+      '<select data-picker-type="' +
+      (key === "role" ? "role" : obj === config.channels ? "channel" : "path") +
+      '"' +
       attrs +
       ">" +
       items
@@ -196,33 +199,18 @@ function field(title, obj, key, type = "text", items = null, disabled = false) {
   );
 }
 function multi(title, obj, key, items, disabled = false) {
-  return (
-    '<div class="field"><span>' +
-    esc(title) +
-    '</span><div class="checks">' +
-    items
-      .map((i) => {
-        const id = bind((el) => {
-          obj[key] = el.checked
-            ? [...obj[key], i.id]
-            : obj[key].filter((v) => v !== i.id);
-          mark();
-        });
-        return (
-          '<label><input type="checkbox" data-field="' +
-          id +
-          '" ' +
-          (obj[key].includes(i.id) ? "checked" : "") +
-          " " +
-          (disabled ? "disabled" : "") +
-          "> " +
-          esc(i.name) +
-          "</label>"
-        );
-      })
-      .join("") +
-    "</div></div>"
-  );
+  const id = bind((el) => {
+    obj[key] = Array.from(el.selectedOptions, (o) => o.value);
+    mark();
+  });
+  const kind = items === state.catalog.roles ? "role" : "channel";
+  const options = items
+    .map(
+      (item) =>
+        `<option value="${esc(item.id)}" ${obj[key].includes(item.id) ? "selected" : ""}>${esc(item.name)}</option>`,
+    )
+    .join("");
+  return `<label class="field"><span>${esc(title)}</span><select multiple data-picker-type="${kind}" data-field="${id}" ${disabled ? "disabled" : ""}>${options}</select></label>`;
 }
 function panel(title, body) {
   return (
@@ -249,6 +237,7 @@ function move(list, index, direction) {
     [list[index], list[j]] = [list[j], list[index]];
 }
 function render() {
+  closePicker();
   const previousRows = captureRows();
   bindings = [];
   document.title = config.brand.name + " · " + titles[tab];
@@ -320,6 +309,7 @@ function render() {
     settings: settingsPage,
     audit: auditPage,
   }[tab]();
+  enhancePickers($("body"), state.catalog);
   refreshPreview();
   enterView(tab + "/" + (tab === "paths" ? selected : ""), previousRows);
 }
