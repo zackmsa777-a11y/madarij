@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="dark" />
     <title>مدارج · لوحة الإدارة</title>
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/motion.css" />
   </head>
   <body>
     <div id="shell">
@@ -30,7 +31,25 @@
           <div>
             <h1 id="heading">مسارات الترقيات</h1>
           </div>
-          <div id="actions"></div>
+          <div class="toolbar">
+            <button
+              id="motion-switch"
+              type="button"
+              aria-label="تشغيل الحركة"
+              aria-pressed="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+              >
+                <path d="M2 12h4l3-7 5 14 3-7h5" />
+              </svg>
+            </button>
+            <div id="actions"></div>
+          </div>
         </header>
         <section id="body" aria-live="polite">
           جارٍ تحميل إعدادات السيرفر…
@@ -46,6 +65,12 @@
       </div>
     </dialog>
     <div id="toast" role="status"></div>
+    <div
+      id="rank-cue"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

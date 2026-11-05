@@ -1,0 +1,275 @@
+/* Promotion feedback sits above the workspace without intercepting edits. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#milestones {
+  position: relative;
+}
+.route-trace {
+  position: absolute;
+  pointer-events: none;
+  height: 2px;
+  transform: scaleX(0);
+}
+.rank-flight {
+  position: fixed;
+  z-index: 5;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+.rank-flight .insignia {
+  width: 100%;
+}
+#motion-switch {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+}
+#motion-switch svg {
+  width: 19px;
+  height: 19px;
+}
+#motion-switch[aria-pressed="true"] {
+  color: var(--blue);
+}
+#motion-switch[aria-pressed="false"] {
+  color: var(--soft);
+}
+#rank-cue {
+  position: fixed;
+  z-index: 4;
+  left: clamp(16px, 4vw, 58px);
+  bottom: max(26px, env(safe-area-inset-bottom));
+  width: min(410px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.rank-plate {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  direction: ltr;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 22px;
+  color: var(--metal);
+  background: #111923;
+  border: 1px solid color-mix(in srgb, var(--metal) 60%, #1e2935);
+  border-radius: 10px;
+  box-shadow: 0 16px 44px #05091060;
+  overflow: hidden;
+}
+.rank-plate:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse at 12% 55%,
+    color-mix(in srgb, var(--metal) 28%, transparent),
+    transparent 70%
+  );
+}
+.insignia {
+  display: block;
+  width: clamp(78px, 8vw, 108px);
+  flex: none;
+  overflow: visible;
+}
+.seal,
+.orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.rank-copy {
+  margin-left: auto;
+  min-width: 0;
+  direction: rtl;
+  text-align: right;
+}
+.rank-copy strong {
+  display: block;
+  color: #f7f9fb;
+  font:
+    700 clamp(22px, 3vw, 35px)/1.3 system-ui,
+    Madarij,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.rank-copy small {
+  display: block;
+  color: #d4e0eb;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+.rank-spark {
+  position: absolute;
+  left: calc(22px + clamp(39px, 4vw, 54px));
+  top: 50%;
+  width: 15px;
+  height: 1.5px;
+  background: var(--metal);
+  transform-origin: left;
+  opacity: 0;
+}
+#live strong {
+  display: block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .rank-plate {
+    animation: rank-arrive 2.2s both;
+  }
+  html[data-motion="on"] .rank-plate:after {
+    content: "";
+    position: absolute;
+    inset: -25% -55%;
+    pointer-events: none;
+    background: linear-gradient(
+      104deg,
+      transparent 37%,
+      color-mix(in srgb, var(--metal) 20%, transparent) 50%,
+      transparent 62%
+    );
+    animation: foil-pass 1s both;
+  }
+  html[data-motion="on"] .seal {
+    animation: strike 0.84s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  html[data-motion="on"] .orbit {
+    animation: orbit-lock 1.45s cubic-bezier(0.18, 0.7, 0.15, 1) both;
+  }
+  html[data-motion="on"] .rank-copy {
+    animation: title-lock 0.52s 0.1s both;
+  }
+  html[data-motion="on"] .rank-spark {
+    animation: cast 0.78s 0.16s ease-out both;
+  }
+  html[data-motion="on"] button {
+    transition:
+      background-color 0.15s,
+      color 0.15s,
+      transform 0.14s;
+  }
+  html[data-motion="on"] button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  html[data-motion="on"] .stop:hover i,
+  html[data-motion="on"] .stop:focus-visible i {
+    transform: scale(1.5);
+  }
+  html[data-motion="on"] .stop i {
+    transition: transform 0.16s;
+  }
+  html[data-motion="on"] dialog[open] {
+    animation: unfold 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  html[data-motion="on"] details[open] > :not(summary) {
+    animation: title-lock 0.19s ease-out;
+  }
+  html[data-motion="on"] #toast.visible {
+    animation: toast-in 0.22s ease-out;
+  }
+}
+@keyframes rank-arrive {
+  0% {
+    clip-path: inset(12% 0 12% 99%);
+    transform: translateX(18px);
+  }
+  18% {
+    clip-path: inset(0);
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes foil-pass {
+  from {
+    transform: translateX(-80%);
+  }
+  to {
+    transform: translateX(80%);
+  }
+}
+@keyframes strike {
+  from {
+    transform: perspective(360px) rotateY(-85deg) scale(0.58);
+  }
+  65% {
+    transform: perspective(360px) rotateY(10deg) scale(1.07);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes orbit-lock {
+  from {
+    transform: rotate(-154deg) scale(0.75);
+  }
+  to {
+    transform: rotate(0) scale(1);
+  }
+}
+@keyframes title-lock {
+  from {
+    opacity: 0.35;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes cast {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(24px) scaleX(0.1);
+  }
+  22% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(var(--reach)) scaleX(0.35);
+  }
+}
+@keyframes unfold {
+  from {
+    transform: perspective(950px) rotateX(-7deg) translateY(10px);
+    opacity: 0.65;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0.45;
+    translate: 0 7px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (max-width: 740px) {
+  #rank-cue {
+    left: 16px;
+    bottom: 18px;
+  }
+  .rank-plate {
+    padding: 12px 18px;
+  }
+  .toolbar {
+    gap: 5px;
+  }
+}

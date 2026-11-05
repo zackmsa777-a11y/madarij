@@ -1,3 +1,11 @@
+import {
+  startMotion,
+  captureRows,
+  enterView,
+  rankCue,
+  chargeStop,
+} from "./motion.js";
+startMotion();
 const $ = (id) => document.getElementById(id);
 let state,
   config,
@@ -60,6 +68,7 @@ async function api(url, body) {
   return data;
 }
 async function reload() {
+  const previousAudit = state?.audit?.[0]?.id ?? (state ? 0 : undefined);
   state = await api("/api/state");
   config = structuredClone(state.config);
   dirty = false;
@@ -69,6 +78,21 @@ async function reload() {
       config.paths[0]?.id ??
       "";
   render();
+  const grant =
+    previousAudit === undefined
+      ? null
+      : state.audit.find((a) => a.id > previousAudit && a.kind === "ترقية");
+  if (grant) {
+    const r = role(grant.detail.role);
+    rankCue({
+      name: r?.name ?? grant.detail.role,
+      color: r?.color,
+      description:
+        "ترقية · " +
+        (state.members.find((m) => m.uid === grant.detail.uid)?.name ??
+          grant.detail.path),
+    });
+  }
 }
 function mark() {
   dirty = true;
@@ -200,6 +224,7 @@ function move(list, index, direction) {
     [list[index], list[j]] = [list[j], list[index]];
 }
 function render() {
+  const previousRows = captureRows();
   bindings = [];
   document.title = config.brand.name + " · " + titles[tab];
   $("brand").textContent = config.brand.name;
@@ -253,6 +278,7 @@ function render() {
     audit: auditPage,
   }[tab]();
   refreshPreview();
+  enterView(tab + "/" + (tab === "paths" ? selected : ""), previousRows);
 }
 const amounts = (p) => {
   let sum = 0;
@@ -830,15 +856,26 @@ document.addEventListener("change", (e) => {
 document.addEventListener("click", (e) => {
   const stop = e.target.closest("[data-milestone]");
   if (!stop) return;
-  previewCount = amounts(path())[Number(stop.dataset.milestone)];
+  const index = Number(stop.dataset.milestone);
+  previewCount = amounts(path())[index];
   $("simCount").value = previewCount;
   refreshPreview();
-  if (window.matchMedia("(max-width:990px)").matches) $("simCount").focus();
-  else
-    $("milestones")
-      .querySelector(`[data-milestone="${stop.dataset.milestone}"]`)
-      ?.focus({ preventScroll: true });
+  $("milestones")
+    .querySelector(`[data-milestone="${stop.dataset.milestone}"]`)
+    ?.focus({ preventScroll: true });
+  showPreviewRank(index);
 });
+function showPreviewRank(index) {
+  const r = role(path().stages[index]?.role);
+  if (!r) return;
+  chargeStop(index);
+  rankCue({
+    name: r.name,
+    color: r.color,
+    description: "محاكاة الترقية · " + fmt(previewCount) + " رسالة",
+    source: $("milestones").querySelector('[data-milestone="' + index + '"] i'),
+  });
+}
 document.addEventListener("input", (e) => {
   if (
     e.target.matches(
@@ -847,8 +884,12 @@ document.addEventListener("input", (e) => {
   )
     bindings[Number(e.target.dataset.field)](e.target);
   if (e.target.id === "simCount") {
+    const totals = amounts(path());
+    const previous = previewCount;
     previewCount = Math.max(0, Number(e.target.value));
     refreshPreview();
+    const index = totals.findLastIndex((n) => n <= previewCount);
+    if (index >= 0 && previous < totals[index]) showPreviewRank(index);
   }
 });
 window.addEventListener("beforeunload", (e) => {

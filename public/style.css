@@ -291,7 +291,7 @@ header {
   top: 8px;
   z-index: -1;
 }
-.stop:last-child:before {
+.stop:last-of-type:before {
   display: none;
 }
 .stop i {
