@@ -216,13 +216,15 @@ function render() {
           await fetch("/logout", { method: "POST" });
           location.reload();
         }));
-  $("context").textContent = state.catalog.name + "  /  لوحة الإدارة";
+
   $("heading").textContent = titles[tab];
   $("nav").innerHTML = Object.keys(titles)
     .filter((k) => k !== "flags" || state.access.admin || state.access.reviewer)
     .map(
       (k) =>
-        '<button class="' +
+        '<button aria-current="' +
+        (k === tab ? "page" : "false") +
+        '" class="' +
         (k === tab ? "active" : "") +
         '" data-action="' +
         bind(() => {
@@ -262,29 +264,24 @@ function refreshPreview() {
   const totals = amounts(p),
     i = totals.findIndex((x) => x > previewCount),
     target = totals[i];
-  $("live").innerHTML =
-    '<div class="metric">' +
-    fmt(previewCount) +
-    '</div><p>رسالة محسوبة</p><progress value="' +
-    (i < 0 ? 1 : previewCount) +
-    '" max="' +
-    (target || 1) +
-    '"></progress><p>' +
-    (target
-      ? "باقي " +
-        fmt(target - previewCount) +
-        " للوصول إلى " +
-        esc(role(p.stages[i].role)?.name ?? "الرتبة")
-      : "اكتمل المسار") +
-    "</p>";
-  $("unit").textContent = fmt(p.step);
+  $("live").innerHTML = p.stages.length
+    ? `<p class="sim-result">${target ? "الرتبة التالية" : "آخر رتبة"}</p><strong>${esc(role(p.stages[i < 0 ? p.stages.length - 1 : i].role)?.name ?? "اختر رتبة")}</strong>
+    <progress aria-label="تقدّم العضو" value="${Math.min(previewCount, target || 1)}" max="${target || 1}"></progress>
+    <p>${target ? "باقي " + fmt(target - previewCount) + " رسالة" : "اكتمل المسار"}</p>`
+    : "أضف مرحلة لتجربة التقدّم.";
+  const track = $("milestones");
+  if (track) {
+    track.innerHTML = p.stages
+      .map((stage, index) => {
+        const rank = role(stage.role);
+        const reached = previewCount >= totals[index];
+        return `<button class="stop ${reached ? "reached" : ""}" data-milestone="${index}" style="--role:${esc(rank?.color || "#a7bdcf")}" aria-label="محاكاة ${esc(rank?.name || "المرحلة")} عند ${totals[index]} رسالة"><i></i><bdi>${esc(rank?.name || "اختر رتبة")}</bdi><small>${fmt(totals[index])} رسالة</small></button>`;
+      })
+      .join("");
+  }
   document
     .querySelectorAll("[data-total]")
-    .forEach(
-      (el) =>
-        (el.textContent =
-          fmt(totals[Number(el.dataset.total)]) + " رسالة إجمالًا"),
-    );
+    .forEach((el) => (el.textContent = fmt(totals[Number(el.dataset.total)])));
 }
 function pathsPage() {
   const admin = state.access.admin;
@@ -323,99 +320,63 @@ function pathsPage() {
     r.id,
     r.name + (r.editable ? "" : " · يتعذّر منحها"),
   ]);
-  const skyline =
-    '<svg viewBox="0 0 400 190" preserveAspectRatio="none" aria-hidden="true"><path d="M0 18H70V48H142V84H215V120H290V155H365V190H0Z" fill="#88b5e2" opacity=".22"/><path d="M0 18H70V48H142V84H215V120H290V155H365V190" fill="none" stroke="#b8ddfd" stroke-width="2"/><path d="M0 64H58V93H122V125H184V158H250V190H0Z" fill="#7595c0" opacity=".25"/></svg>';
-  html +=
-    '<div class="map">' +
-    skyline +
-    '<div class="pills"><span class="pill">' +
-    (p.enabled ? "مفعّل" : "متوقّف") +
-    "</span><small>" +
-    fmt(p.stages.length) +
-    " مراحل</small></div><h2>" +
-    esc(p.name) +
-    '</h2><div class="rule"><span id="unit"></span> <small>رسالة لكل مرحلة</small></div><p>ترث المراحل مقدار الفئة إلّا إذا حدّدت استثناءً.</p></div>';
   const stages = p.stages
-    .map(
-      (s, i) =>
-        '<div class="stage"><div class="section-head"><strong style="--tone:' +
-        esc(role(s.role)?.color ?? "#bbc") +
-        '">' +
-        esc(role(s.role)?.name ?? "اختر رتبة") +
-        '</strong><small data-total="' +
-        i +
-        '"></small></div>' +
-        grid(
-          field(
-            "رتبة الترقية",
-            s,
-            "role",
-            "text",
-            [["", "اختر رتبة"], ...roleItems],
-            noAdmin,
-          ),
-          field("استثناء عدد الرسائل", s, "cost", "number", null, !canEdit),
-          field(
-            "تحتاج اعتمادًا يدويًا",
-            s,
-            "manual",
-            "checkbox",
-            null,
-            noAdmin,
-          ),
-        ) +
-        (admin
-          ? '<div class="actions">' +
-            button("تقديم", () => redrawEdit(() => move(p.stages, i, -1))) +
-            button("تأخير", () => redrawEdit(() => move(p.stages, i, 1))) +
-            button(
-              "حذف المرحلة",
-              () => redrawEdit(() => p.stages.splice(i, 1)),
-              "danger",
-            ) +
-            "</div>"
-          : "") +
-        "</div>",
-    )
+    .map((s, i) => {
+      const tone = role(s.role)?.color || "#b7c8d8";
+      const controls = admin
+        ? details(
+            "ترتيب وحذف",
+            '<div class="actions">' +
+              button("تقديم", () => redrawEdit(() => move(p.stages, i, -1))) +
+              button("تأخير", () => redrawEdit(() => move(p.stages, i, 1))) +
+              button(
+                "حذف المرحلة",
+                () => redrawEdit(() => p.stages.splice(i, 1)),
+                "danger",
+              ) +
+              "</div>",
+          )
+        : "";
+      return `<div class="stage" style="--tone:${esc(tone)}">
+      <div class="rank">${field("رتبة الترقية", s, "role", "text", [["", "اختر رتبة"], ...roleItems], noAdmin)}</div>
+      ${field("استثناء عدد الرسائل", s, "cost", "number", null, !canEdit)}
+      <span class="target" data-total="${i}"></span>
+      ${field("تحتاج اعتمادًا يدويًا", s, "manual", "checkbox", null, noAdmin)}
+      ${controls}</div>`;
+    })
     .join("");
-  const left = panel(
-    "مراحل المسار",
-    grid(
-      field(
-        "عدد الرسائل لكل مرحلة في الفئة",
-        p,
-        "step",
-        "number",
-        null,
-        !canEdit,
-      ),
-    ) +
-      stages +
-      (admin
-        ? '<div class="actions">' +
-          button("＋ إضافة مرحلة", () =>
-            redrawEdit(() =>
-              p.stages.push({ role: "", cost: null, manual: false }),
-            ),
-          ) +
-          "</div>"
-        : ""),
+  const base = field(
+    "عدد الرسائل لكل مرحلة في الفئة",
+    p,
+    "step",
+    "number",
+    null,
+    !canEdit,
   );
+  html += `<section class="route"><div class="section-head"><div class="route-name"><h2>${esc(p.name)}</h2><span class="status" data-enabled="${p.enabled}">${p.enabled ? "مفعّل" : "متوقّف"}</span></div><small>${fmt(p.stages.length)} مراحل</small></div>
+    <div id="milestones" aria-label="اختيار عتبة للمحاكاة"></div></section>`;
+  const editor = `<section class="editor"><h2>قواعد الترقية</h2><div class="base">${base}<small>يسري على كل مرحلة ما لم تحدّد استثناءً.</small></div>
+    <div class="stage-head" aria-hidden="true"><span>رتبة الترقية</span><span>استثناء الرسائل</span><span>الهدف التراكمي</span><span>اعتماد يدوي</span><span></span></div>
+    ${stages}${admin ? button("إضافة مرحلة", () => redrawEdit(() => p.stages.push({ role: "", cost: null, manual: false })), "add-stage") : ""}</section>`;
   const sample =
-    '<section class="panel"><h2>محاكاة التقدّم</h2><label class="field"><span>جرّب عدد الرسائل</span><input id="simCount" type="number" min="0" value="' +
-    previewCount +
-    '"></label><div id="live" class="sample"></div>' +
-    button("عرض بطاقة PNG المحفوظة", () => {
-      if (dirty) throw Error("احفظ المسار أولًا لمعاينة بطاقته");
-      window.open(
-        "/api/card?path=" + encodeURIComponent(p.id) + "&count=" + previewCount,
-        "_blank",
-        "noopener",
-      );
-    }) +
+    `<section class="simulator"><h2>محاكاة التقدّم</h2><label class="field"><span>جرّب عدد الرسائل</span><input id="simCount" type="number" min="0" value="${previewCount}"></label><div id="live" class="sample"></div>` +
+    button(
+      "عرض بطاقة PNG المحفوظة",
+      () => {
+        if (dirty) throw Error("احفظ المسار أولًا لمعاينة بطاقته");
+        window.open(
+          "/api/card?path=" +
+            encodeURIComponent(p.id) +
+            "&count=" +
+            previewCount,
+          "_blank",
+          "noopener",
+        );
+      },
+      "png-link",
+    ) +
     "</section>";
-  html +=
-    '<div class="split"><div>' + left + "</div><div>" + sample + "</div></div>";
+  html += '<div class="workspace">' + editor + sample + "</div>";
   html += details(
     "الدخول والأولوية ومسار التخرج",
     grid(
@@ -866,7 +827,25 @@ document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.hasAttribute("data-field")) bindings[Number(el.dataset.field)](el);
 });
+document.addEventListener("click", (e) => {
+  const stop = e.target.closest("[data-milestone]");
+  if (!stop) return;
+  previewCount = amounts(path())[Number(stop.dataset.milestone)];
+  $("simCount").value = previewCount;
+  refreshPreview();
+  if (window.matchMedia("(max-width:990px)").matches) $("simCount").focus();
+  else
+    $("milestones")
+      .querySelector(`[data-milestone="${stop.dataset.milestone}"]`)
+      ?.focus({ preventScroll: true });
+});
 document.addEventListener("input", (e) => {
+  if (
+    e.target.matches(
+      'input[type="text"][data-field],input[type="number"][data-field]',
+    )
+  )
+    bindings[Number(e.target.dataset.field)](e.target);
   if (e.target.id === "simCount") {
     previewCount = Math.max(0, Number(e.target.value));
     refreshPreview();
