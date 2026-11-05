@@ -30,6 +30,13 @@ const icons = {
   settings: "M3 6h18M3 12h18M3 18h18M8 3v6M17 9v6M10 15v6",
   audit: "M4 4h15v17H4zM8 9h7M8 14h7",
 };
+const shortTitles = {
+  paths: "المسارات",
+  people: "الأعضاء",
+  flags: "الفلاقات",
+  settings: "الإعدادات",
+  audit: "السجل",
+};
 const esc = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -43,7 +50,8 @@ const svg = (key) =>
   icons[key] +
   '"/></svg>';
 const role = (id) => state.catalog.roles.find((r) => r.id === id);
-const fmt = (n) => Number(n).toLocaleString("ar");
+const numberFormat = new Intl.NumberFormat("ar", { numberingSystem: "arab" });
+const fmt = (n) => numberFormat.format(n);
 const time = (n) => new Date(n).toLocaleString("ar");
 const path = () => config.paths.find((p) => p.id === selected);
 function toast(s) {
@@ -113,6 +121,19 @@ function button(label, fn, cls = "") {
     "</button>"
   );
 }
+function numberField(title, inputId, value, attrs, min = 0, placeholder = "") {
+  const disabled = attrs.includes("disabled") ? "disabled" : "";
+  const arrows = [
+    ["1", "زيادة", "m2 8 4-4 4 4"],
+    ["-1", "خفض", "m2 4 4 4 4-4"],
+  ]
+    .map(
+      ([step, label, d]) =>
+        `<button type="button" data-step="${step}" aria-controls="${inputId}" aria-label="${label} ${esc(title)}" ${disabled}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="${d}"/></svg></button>`,
+    )
+    .join("");
+  return `<div class="field numeric"><label for="${inputId}">${esc(title)}</label><div class="number-box"><input id="${inputId}" type="number" inputmode="numeric" min="${min}" step="1" value="${esc(value)}" placeholder="${esc(placeholder)}" ${attrs}><div class="step-arrows">${arrows}</div></div></div>`;
+}
 function field(title, obj, key, type = "text", items = null, disabled = false) {
   const v = obj[key],
     id = bind((el) => {
@@ -129,6 +150,15 @@ function field(title, obj, key, type = "text", items = null, disabled = false) {
       refreshPreview();
     });
   const attrs = ' data-field="' + id + '" ' + (disabled ? "disabled" : "");
+  if (type === "number")
+    return numberField(
+      title,
+      "quantity-" + id,
+      v,
+      attrs,
+      ["cost", "step", "windowSeconds"].includes(key) ? 1 : 0,
+      key === "cost" ? "من الفئة" : "",
+    );
   let control;
   if (items)
     control =
@@ -152,16 +182,7 @@ function field(title, obj, key, type = "text", items = null, disabled = false) {
     control = '<input type="checkbox"' + attrs + (v ? " checked" : "") + ">";
   else
     control =
-      '<input type="' +
-      type +
-      '" value="' +
-      esc(v) +
-      '" ' +
-      (type === "number" ? 'min="0" step="1"' : "") +
-      attrs +
-      " " +
-      (key === "cost" ? 'placeholder="يرث مقدار الفئة"' : "") +
-      ">";
+      '<input type="' + type + '" value="' + esc(v) + '" ' + attrs + ">";
   return (
     '<label class="field"><span>' +
     esc(title) +
@@ -247,7 +268,9 @@ function render() {
     .filter((k) => k !== "flags" || state.access.admin || state.access.reviewer)
     .map(
       (k) =>
-        '<button aria-current="' +
+        '<button aria-label="' +
+        esc(titles[k]) +
+        '" aria-current="' +
         (k === tab ? "page" : "false") +
         '" class="' +
         (k === tab ? "active" : "") +
@@ -258,7 +281,11 @@ function render() {
         }) +
         '">' +
         svg(k) +
+        '<span class="nav-full">' +
         esc(titles[k]) +
+        '</span><span class="nav-short">' +
+        esc(shortTitles[k]) +
+        "</span>" +
         "</button>",
     )
     .join("");
@@ -385,7 +412,7 @@ function pathsPage() {
     <div class="stage-head" aria-hidden="true"><span>رتبة الترقية</span><span>استثناء الرسائل</span><span>الهدف التراكمي</span><span>اعتماد يدوي</span><span></span></div>
     ${stages}${admin ? button("إضافة مرحلة", () => redrawEdit(() => p.stages.push({ role: "", cost: null, manual: false })), "add-stage") : ""}</section>`;
   const sample =
-    `<section class="simulator"><h2>محاكاة التقدّم</h2><label class="field"><span>جرّب عدد الرسائل</span><input id="simCount" type="number" min="0" value="${previewCount}"></label><div id="live" class="sample"></div>` +
+    `<section class="simulator"><h2>محاكاة التقدّم</h2>${numberField("جرّب عدد الرسائل", "simCount", previewCount, "")}<div id="live" class="sample"></div>` +
     button(
       "عرض بطاقة PNG المحفوظة",
       () => {
@@ -852,6 +879,14 @@ document.addEventListener("click", async (e) => {
 document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.hasAttribute("data-field")) bindings[Number(el.dataset.field)](el);
+});
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-step]");
+  if (!button || button.disabled) return;
+  const input = $(button.getAttribute("aria-controls"));
+  if (Number(button.dataset.step) > 0) input.stepUp();
+  else input.stepDown();
+  input.dispatchEvent(new Event("input", { bubbles: true }));
 });
 document.addEventListener("click", (e) => {
   const stop = e.target.closest("[data-milestone]");

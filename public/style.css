@@ -155,6 +155,9 @@ nav svg {
   height: 17px;
   flex: none;
 }
+.nav-short {
+  display: none;
+}
 #account {
   margin-top: auto;
   border-top: 1px solid var(--line);
@@ -368,10 +371,9 @@ header {
 .stage-head,
 .stage {
   display: grid;
-  grid-template-columns: minmax(95px, 1.15fr) minmax(75px, 0.88fr) minmax(
-      55px,
-      0.64fr
-    ) minmax(50px, 0.64fr) minmax(64px, 0.62fr);
+  grid-template-columns:
+    minmax(95px, 1.15fr) minmax(75px, 0.88fr) minmax(55px, 0.64fr)
+    minmax(50px, 0.64fr) minmax(64px, 0.62fr);
   align-items: center;
   column-gap: 10px;
 }
@@ -668,17 +670,30 @@ code {
   }
   nav {
     grid-column: 1/-1;
-    display: flex;
-    overflow: auto;
-    padding-bottom: 5px;
-    scrollbar-width: thin;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding-block: 3px 5px;
   }
   nav button {
-    white-space: nowrap;
-    padding: 6px 9px;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 48px;
+    padding: 5px 0;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1.5;
   }
   nav svg {
-    width: 15px;
+    width: 18px;
+    height: 18px;
+  }
+  .nav-short {
+    display: inline;
+  }
+  .nav-full {
+    display: none;
   }
   #account {
     display: none;
@@ -764,5 +779,198 @@ code {
   }
   .stage-head + .stage {
     border-top: 1px solid var(--line);
+  }
+}
+/* Controls use the same stroke weight, numerals and surfaces as the rank editor. */
+:root {
+  scrollbar-color: #566779 var(--rail);
+  scrollbar-width: thin;
+}
+.switches,
+#milestones,
+aside {
+  scrollbar-color: #566779 transparent;
+  scrollbar-width: thin;
+}
+.numeric > label {
+  font-size: 13px;
+  color: var(--soft);
+}
+.number-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 27px;
+  align-items: stretch;
+  min-height: 39px;
+  background: var(--layer);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.number-box:focus-within {
+  border-color: var(--blue);
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.number-box input[type="number"] {
+  border: 0;
+  background: transparent;
+  appearance: textfield;
+  min-width: 0;
+  text-align: start;
+  font:
+    600 16px/1.5 Madarij,
+    sans-serif;
+  padding: 5px 8px;
+  outline: none;
+  max-width: none;
+}
+.number-box input::placeholder {
+  font-size: 12px;
+  font-weight: 400;
+}
+.number-box input::-webkit-inner-spin-button,
+.number-box input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.step-arrows {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  border-inline-start: 1px solid var(--line);
+}
+.step-arrows button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--soft);
+}
+.step-arrows button + button {
+  border-top: 1px solid var(--line);
+}
+.step-arrows button:focus-visible {
+  outline-offset: -2px;
+}
+.step-arrows svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.base .number-box {
+  width: 133px;
+}
+.simulator .number-box {
+  background: #e9eff4;
+  --line: #98acbc;
+  --blue: #395e7a;
+}
+.simulator .number-box input {
+  background: transparent;
+  border: 0;
+  color: #162a38;
+}
+.simulator .step-arrows button:hover {
+  color: #19364b;
+  background: #c1d3e1;
+}
+.stage .numeric > label {
+  position: absolute;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.target,
+.stop small {
+  font-variant-numeric: tabular-nums;
+}
+select,
+.rank select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23afc4d7' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 6px center;
+  background-size: 15px;
+  padding-inline-end: 25px;
+}
+input[type="checkbox"] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  border: 1px solid #73879b;
+  border-radius: 4px;
+  background: var(--layer);
+  vertical-align: middle;
+}
+input[type="checkbox"]:checked {
+  background: var(--blue);
+  border-color: var(--blue);
+}
+input[type="checkbox"]:checked:after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border: solid #192938;
+  border-width: 0 0 2px 2px;
+  transform: translateY(-1px) rotate(-45deg);
+}
+input:disabled,
+select:disabled {
+  opacity: 0.58;
+}
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary:before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline: 2px 9px;
+  border: solid currentColor;
+  border-width: 0 0 1.5px 1.5px;
+  transform: rotate(45deg);
+  vertical-align: middle;
+}
+details[open] > summary:before {
+  transform: rotate(-45deg);
+}
+@media (max-width: 740px) {
+  .stage .numeric > label {
+    position: static;
+    clip-path: none;
+    height: auto;
+    width: auto;
+    font-size: 11px;
+  }
+  .number-box {
+    min-height: 44px;
+  }
+  .step-arrows {
+    grid-template-rows: repeat(2, minmax(22px, 1fr));
+  }
+}
+@media (forced-colors: active) {
+  input[type="checkbox"],
+  select,
+  .rank select {
+    appearance: auto;
+  }
+  .number-box:focus-within {
+    outline-color: Highlight;
+  }
+  .step-arrows button {
+    color: ButtonText;
   }
 }
