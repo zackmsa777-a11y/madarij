@@ -26,7 +26,7 @@ function syncPreference() {
     clearCue();
   }
 }
-function clearCue() {
+export function clearCue() {
   clearTimeout(cueTimer);
   document.getElementById("rank-cue").replaceChildren();
   document.querySelector(".rank-flight")?.remove();
@@ -95,17 +95,17 @@ function trace(track, from, to, color, delay = 0) {
 }
 export function captureRows() {
   return new Map(
-    Array.from(document.querySelectorAll(".stage .rank select"), (el) => [
+    Array.from(document.querySelectorAll(".rank-row select"), (el) => [
       el.value,
-      el.closest(".stage").getBoundingClientRect().top,
+      el.closest(".rank-row").getBoundingClientRect().top,
     ]),
   );
 }
 let lastView = "";
 export function enterView(key, rows) {
   if (lastView === key) {
-    for (const el of document.querySelectorAll(".stage .rank select")) {
-      const row = el.closest(".stage"),
+    for (const el of document.querySelectorAll(".rank-row select")) {
+      const row = el.closest(".rank-row"),
         prev = rows.get(el.value);
       const dy =
         prev === undefined ? 12 : prev - row.getBoundingClientRect().top;
@@ -173,7 +173,7 @@ export function enterView(key, rows) {
     );
   }
   const list = document.querySelectorAll(
-    ".stage, #body > .panel, .sheet > .panel",
+    ".rank-row, #body > .panel, .sheet > .panel",
   );
   Array.from(list)
     .slice(0, 9)
@@ -190,7 +190,7 @@ export function enterView(key, rows) {
     );
 }
 // A layered rank insignia. Its color always comes from the selected Discord role.
-function crest() {
+export function crest() {
   return '<svg class="insignia" aria-hidden="true" viewBox="0 0 120 120"><g class="orbit"><circle cx="60" cy="60" r="53" fill="none" stroke="currentColor" stroke-dasharray="18 6 2 8" opacity=".5"/></g><g class="seal"><path d="m60 12 36 24v45l-36 26-36-26V36z" fill="#101820" stroke="currentColor" stroke-width="3"/><path d="m60 20 29 20v36l-29 21-29-21V40z" fill="currentColor" opacity=".2"/><path d="m38 67 22-17 22 17M38 53l22-17 22 17" fill="none" stroke="currentColor" stroke-width="7"/><path d="m51 78 9-7 9 7-9 7z" fill="currentColor"/></g></svg>';
 }
 export function rankCue({ name, color, description, source }) {
@@ -283,7 +283,7 @@ export function chargeStop(index) {
     550,
   );
   play(
-    document.querySelector("#live strong"),
+    document.querySelector("#lens-role"),
     [
       { transform: "translateY(8px)", opacity: 0.4 },
       { transform: "none", opacity: 1 },

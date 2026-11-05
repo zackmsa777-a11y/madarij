@@ -4,6 +4,8 @@ import {
   enterView,
   rankCue,
   chargeStop,
+  crest,
+  clearCue,
 } from "./motion.js";
 startMotion();
 const $ = (id) => document.getElementById(id);
@@ -15,6 +17,7 @@ let state,
   bindings = [],
   previewCount = 0,
   timer;
+let openStage;
 const titles = {
   paths: "مسارات الترقيات",
   people: "تقدّم الأعضاء",
@@ -103,8 +106,9 @@ async function reload() {
   }
 }
 function mark() {
-  dirty = true;
-  document.querySelector("#save")?.removeAttribute("disabled");
+  dirty = JSON.stringify(config) !== JSON.stringify(state.config);
+  if ($("save")) $("save").disabled = !dirty;
+  if ($("discard")) $("discard").hidden = !dirty;
 }
 function bind(fn) {
   bindings.push(fn);
@@ -293,10 +297,22 @@ function render() {
     state.access.admin || state.access.operator
       ? '<button id="save" class="primary" ' +
         (!dirty ? "disabled" : "") +
-        ">معاينة وحفظ</button>"
+        ">معاينة وحفظ</button>" +
+        '<button id="discard" ' +
+        (dirty ? "" : "hidden") +
+        ' type="button">تراجع عن المسودة</button>'
       : "";
   if ($("save"))
     $("save").onclick = () => previewSave().catch((e) => toast(e.message));
+  if ($("discard"))
+    $("discard").onclick = () => {
+      config = structuredClone(state.config);
+      dirty = false;
+      openStage = undefined;
+      if (!path()) selected = config.paths[0]?.id ?? "";
+      render();
+      toast("استعدت الإعدادات المحفوظة");
+    };
   $("body").innerHTML = {
     paths: pathsPage,
     people: peoplePage,
@@ -317,24 +333,89 @@ function refreshPreview() {
   const totals = amounts(p),
     i = totals.findIndex((x) => x > previewCount),
     target = totals[i];
-  $("live").innerHTML = p.stages.length
-    ? `<p class="sim-result">${target ? "الرتبة التالية" : "آخر رتبة"}</p><strong>${esc(role(p.stages[i < 0 ? p.stages.length - 1 : i].role)?.name ?? "اختر رتبة")}</strong>
-    <progress aria-label="تقدّم العضو" value="${Math.min(previewCount, target || 1)}" max="${target || 1}"></progress>
-    <p>${target ? "باقي " + fmt(target - previewCount) + " رسالة" : "اكتمل المسار"}</p>`
-    : "أضف مرحلة لتجربة التقدّم.";
-  const track = $("milestones");
-  if (track) {
-    track.innerHTML = p.stages
-      .map((stage, index) => {
-        const rank = role(stage.role);
-        const reached = previewCount >= totals[index];
-        return `<button class="stop ${reached ? "reached" : ""}" data-milestone="${index}" style="--role:${esc(rank?.color || "#a7bdcf")}" aria-label="محاكاة ${esc(rank?.name || "المرحلة")} عند ${totals[index]} رسالة"><i></i><bdi>${esc(rank?.name || "اختر رتبة")}</bdi><small>${fmt(totals[index])} رسالة</small></button>`;
-      })
-      .join("");
+  const max = totals.at(-1) || 1;
+  const active = i === -1 ? p.stages.length - 1 : i - 1;
+  const rank = role(p.stages[Math.max(active, 0)]?.role);
+  const tint = (r) => (r?.color && r.color !== "#000000" ? r.color : "#adcdf0");
+  const setText = (el, value) => {
+    if (el && el.textContent !== value) el.textContent = value;
+  };
+  const scrub = $("scrub");
+  scrub.max = Math.max(1, max);
+  scrub.value = Math.min(max, previewCount);
+  scrub.disabled = !p.stages.length;
+  scrub.setAttribute("aria-valuetext", fmt(previewCount) + " رسالة");
+  $("deck").style.setProperty("--tint", tint(rank));
+  $("deck").style.setProperty(
+    "--fill",
+    Math.min(100, (previewCount / max) * 100) + "%",
+  );
+  const identity = $("deck").querySelector(".identity");
+  if (identity.dataset.level !== String(active)) {
+    identity.dataset.level = String(active);
+    if (
+      document.documentElement.dataset.motion === "on" &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      const icon = identity.querySelector(".insignia");
+      icon.getAnimations().forEach((a) => a.cancel());
+      icon.animate(
+        [{ transform: "scale(.90) rotate(-5deg)" }, { transform: "none" }],
+        { duration: 240, easing: "ease-out" },
+      );
+    }
   }
-  document
-    .querySelectorAll("[data-total]")
-    .forEach((el) => (el.textContent = fmt(totals[Number(el.dataset.total)])));
+  setText(
+    $("lens-role"),
+    p.stages.length ? (rank?.name ?? "اختر رتبة") : "مسار فارغ",
+  );
+  setText($("lens-label"), active < 0 ? "الرتبة القادمة" : "الرتبة المستحقة");
+  setText($("lens-count"), fmt(previewCount));
+  setText($("lens-max"), fmt(max));
+  setText(
+    $("lens-next"),
+    !p.stages.length
+      ? "أضف أول رتبة للمسار"
+      : target
+        ? "باقي " +
+          fmt(target - previewCount) +
+          " رسالة للوصول إلى " +
+          (role(p.stages[i]?.role)?.name ?? "الرتبة التالية")
+        : "اكتملت جميع مراحل المسار",
+  );
+  const oldPath = state.config.paths.find((x) => x.id === p.id);
+  const savedTotals = oldPath ? amounts(oldPath) : [];
+  const track = $("milestones");
+  p.stages.forEach((stage, index) => {
+    const r = role(stage.role),
+      name = r?.name ?? "اختر رتبة",
+      tone = tint(r),
+      total = totals[index];
+    const stop = track.querySelector('[data-milestone="' + index + '"]');
+    stop.style.setProperty("--role", tone);
+    stop.classList.toggle("reached", previewCount >= total);
+    stop.setAttribute(
+      "aria-label",
+      "محاكاة " + name + " عند " + total + " رسالة",
+    );
+    setText(stop.querySelector("bdi"), name);
+    setText(stop.querySelector("small"), fmt(total));
+    const row = document.querySelector('[data-stage="' + index + '"]');
+    row.classList.toggle("at-preview", active === index);
+    row.style.setProperty("--tone", tone);
+    setText(row.querySelector("bdi"), name);
+    setText(row.querySelector("[data-total]"), fmt(total));
+    setText(
+      row.querySelector(".policy"),
+      stage.manual ? "اعتماد يدوي" : "تلقائية",
+    );
+    const oldIndex =
+      oldPath?.stages.findIndex((x) => x.role === stage.role) ?? -1;
+    const previous = savedTotals[oldIndex];
+    const diff = row.querySelector("del");
+    diff.hidden = previous === undefined || previous === total;
+    if (!diff.hidden) setText(diff, fmt(previous));
+  });
 }
 function pathsPage() {
   const admin = state.access.admin;
@@ -374,30 +455,47 @@ function pathsPage() {
     r.name + (r.editable ? "" : " · يتعذّر منحها"),
   ]);
   const stages = p.stages
-    .map((s, i) => {
-      const tone = role(s.role)?.color || "#b7c8d8";
-      const controls = admin
-        ? details(
-            "ترتيب وحذف",
-            '<div class="actions">' +
-              button("تقديم", () => redrawEdit(() => move(p.stages, i, -1))) +
-              button("تأخير", () => redrawEdit(() => move(p.stages, i, 1))) +
-              button(
-                "حذف المرحلة",
-                () => redrawEdit(() => p.stages.splice(i, 1)),
-                "danger",
-              ) +
-              "</div>",
-          )
+    .map((stage, index) => {
+      const actions = admin
+        ? '<div class="actions">' +
+          button("تقديم", () => redrawEdit(() => move(p.stages, index, -1))) +
+          button("تأخير", () => redrawEdit(() => move(p.stages, index, 1))) +
+          button(
+            "حذف المرحلة",
+            () => redrawEdit(() => p.stages.splice(index, 1)),
+            "danger",
+          ) +
+          "</div>"
         : "";
-      return `<div class="stage" style="--tone:${esc(tone)}">
-      <div class="rank">${field("رتبة الترقية", s, "role", "text", [["", "اختر رتبة"], ...roleItems], noAdmin)}</div>
-      ${field("استثناء عدد الرسائل", s, "cost", "number", null, !canEdit)}
-      <span class="target" data-total="${i}"></span>
-      ${field("تحتاج اعتمادًا يدويًا", s, "manual", "checkbox", null, noAdmin)}
-      ${controls}</div>`;
+      return `<details class="rank-row" data-stage="${index}" ${openStage === stage ? "open" : ""}><summary>
+      <span class="rank-name"><i></i><bdi></bdi></span><span class="policy"></span><span class="rank-goal"><del hidden></del><strong data-total="${index}"></strong><small>رسالة</small></span>
+      </summary><div class="row-edit"><div class="grid">${field("رتبة الترقية", stage, "role", "text", [["", "اختر رتبة"], ...roleItems], noAdmin)}${field("استثناء عدد الرسائل", stage, "cost", "number", null, !canEdit)}${field("تحتاج اعتمادًا يدويًا", stage, "manual", "checkbox", null, noAdmin)}</div>${actions}</div></details>`;
     })
     .join("");
+  const stops = p.stages
+    .map(
+      (_, index) =>
+        `<button class="stop" data-milestone="${index}"><i></i><bdi></bdi><small></small></button>`,
+    )
+    .join("");
+  const previewLink = button(
+    "عرض بطاقة PNG المحفوظة",
+    () => {
+      if (dirty) throw Error("احفظ المسار أولًا لمعاينة بطاقته");
+      window.open(
+        "/api/card?path=" + encodeURIComponent(p.id) + "&count=" + previewCount,
+        "_blank",
+        "noopener",
+      );
+    },
+    "card-link",
+  );
+  html += `<section id="deck" class="simulator rank-deck"><div class="deck-top"><h2>محاكاة مسار ${esc(p.name)}</h2><span class="status" data-enabled="${p.enabled}">${p.enabled ? "مفعّل" : "متوقّف"}</span></div>
+    <div class="console"><div class="identity">${crest()}<div><small id="lens-label"></small><bdi id="lens-role"></bdi></div></div>
+    <div class="scrubber"><div class="readout"><output id="lens-count" for="scrub"></output><span>رسالة محسوبة</span></div>
+    <input id="scrub" type="range" min="0" step="1" aria-label="محاكاة عدد الرسائل"><div class="scale"><span>${fmt(0)}</span><span id="lens-max"></span></div></div></div>
+    <div id="live"><p id="lens-next"></p></div><div id="milestones" aria-label="اختيار رتبة للمحاكاة">${stops}</div>
+    <footer class="deck-footer"><details class="precision"><summary>إدخال عدد دقيق</summary>${numberField("جرّب عدد الرسائل", "simCount", previewCount, "")}</details>${previewLink}</footer></section>`;
   const base = field(
     "عدد الرسائل لكل مرحلة في الفئة",
     p,
@@ -406,30 +504,22 @@ function pathsPage() {
     null,
     !canEdit,
   );
-  html += `<section class="route"><div class="section-head"><div class="route-name"><h2>${esc(p.name)}</h2><span class="status" data-enabled="${p.enabled}">${p.enabled ? "مفعّل" : "متوقّف"}</span></div><small>${fmt(p.stages.length)} مراحل</small></div>
-    <div id="milestones" aria-label="اختيار عتبة للمحاكاة"></div></section>`;
-  const editor = `<section class="editor"><h2>قواعد الترقية</h2><div class="base">${base}<small>يسري على كل مرحلة ما لم تحدّد استثناءً.</small></div>
-    <div class="stage-head" aria-hidden="true"><span>رتبة الترقية</span><span>استثناء الرسائل</span><span>الهدف التراكمي</span><span>اعتماد يدوي</span><span></span></div>
-    ${stages}${admin ? button("إضافة مرحلة", () => redrawEdit(() => p.stages.push({ role: "", cost: null, manual: false })), "add-stage") : ""}</section>`;
-  const sample =
-    `<section class="simulator"><h2>محاكاة التقدّم</h2>${numberField("جرّب عدد الرسائل", "simCount", previewCount, "")}<div id="live" class="sample"></div>` +
-    button(
-      "عرض بطاقة PNG المحفوظة",
-      () => {
-        if (dirty) throw Error("احفظ المسار أولًا لمعاينة بطاقته");
-        window.open(
-          "/api/card?path=" +
-            encodeURIComponent(p.id) +
-            "&count=" +
-            previewCount,
-          "_blank",
-          "noopener",
-        );
-      },
-      "png-link",
-    ) +
-    "</section>";
-  html += '<div class="workspace">' + editor + sample + "</div>";
+  html += `<section class="rulebook"><div class="section-head"><h2>قواعد الترقية</h2>${
+    admin
+      ? button(
+          "إضافة مرحلة",
+          () =>
+            redrawEdit(() => {
+              const stage = { role: "", cost: null, manual: false };
+              p.stages.push(stage);
+              openStage = stage;
+            }),
+          "add-stage",
+        )
+      : ""
+  }</div>
+    <div class="class-default">${base}<small>تستخدمه كل رتبة ما لم تحدّد لها عددًا مختلفًا.</small></div>
+    ${stages}</section>`;
   html += details(
     "الدخول والأولوية ومسار التخرج",
     grid(
@@ -911,6 +1001,28 @@ function showPreviewRank(index) {
     source: $("milestones").querySelector('[data-milestone="' + index + '"] i'),
   });
 }
+document.addEventListener(
+  "toggle",
+  (e) => {
+    const row = e.target;
+    if (!row.matches?.(".rank-row") || !row.isConnected) return;
+    if (row.open) {
+      openStage = path()?.stages[Number(row.dataset.stage)];
+      document.querySelectorAll(".rank-row[open]").forEach((other) => {
+        if (other !== row) other.open = false;
+      });
+    } else if (openStage === path()?.stages[Number(row.dataset.stage)])
+      openStage = undefined;
+  },
+  true,
+);
+document.addEventListener("change", (e) => {
+  if (e.target.id === "scrub") {
+    clearCue();
+    const idx = amounts(path()).findLastIndex((n) => n <= previewCount);
+    if (idx >= 0) showPreviewRank(idx);
+  }
+});
 document.addEventListener("input", (e) => {
   if (
     e.target.matches(
@@ -918,7 +1030,13 @@ document.addEventListener("input", (e) => {
     )
   )
     bindings[Number(e.target.dataset.field)](e.target);
+  if (e.target.id === "scrub") {
+    previewCount = Number(e.target.value);
+    $("simCount").value = previewCount;
+    refreshPreview();
+  }
   if (e.target.id === "simCount") {
+    clearCue();
     const totals = amounts(path());
     const previous = previewCount;
     previewCount = Math.max(0, Number(e.target.value));
