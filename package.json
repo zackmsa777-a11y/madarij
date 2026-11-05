@@ -1,0 +1,20 @@
+{
+  "name": "madarij",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "demo": "node server.js --demo",
+    "start": "node --env-file=.env server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.1.0",
+    "discord.js": "^14.28.1",
+    "express": "^5.3.0"
+  }
+}

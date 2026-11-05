@@ -1,0 +1,52 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>مدارج · لوحة الإدارة</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="shell">
+      <aside>
+        <div class="brand">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <path
+              d="M3 30h10v-8h10v-8h12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="6"
+            />
+          </svg>
+          <div id="brand">مدارج</div>
+        </div>
+        <div class="server" id="guild">لوحة الإدارة</div>
+        <nav id="nav"></nav>
+        <div id="account"></div>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <div id="context"></div>
+            <h1 id="heading">مسارات الترقيات</h1>
+          </div>
+          <div id="actions"></div>
+        </header>
+        <section id="body" aria-live="polite">
+          جارٍ تحميل إعدادات السيرفر…
+        </section>
+      </main>
+    </div>
+    <dialog id="confirm">
+      <h2>معاينة التعديل</h2>
+      <div id="impact"></div>
+      <div class="actions">
+        <button id="commit" class="primary">حفظ الإعدادات</button
+        ><button id="cancel">رجوع</button>
+      </div>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
